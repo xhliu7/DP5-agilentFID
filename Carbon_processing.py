@@ -22,11 +22,25 @@ def process_carbon(NMR_file,settings,datatype):
 
     total_spectral_ydata = edge_removal(total_spectral_ydata)
 
-    picked_peaks, simulated_ydata = iterative_peak_picking(total_spectral_ydata, 5, corr_distance)
+    if datatype == 'mjcamp':
+        picked_peaks, simulated_ydata = iterative_peak_picking(total_spectral_ydata, 16, corr_distance)
+    else:
+        picked_peaks, simulated_ydata = iterative_peak_picking(total_spectral_ydata, 5, corr_distance)
 
     picked_peaks = sorted(list(set(picked_peaks)))
 
     picked_peaks, removed = solvent_removal(simulated_ydata, spectral_xdata_ppm, settings.Solvent, uc, picked_peaks)
+
+    # if datatype == 'mjcamp':  #to get Mnova jcamp peaks and avoid using iterative_peak_picking()
+    #     mj_picked_peaks = []
+    #     dic, temp_ydata = ng.jcampdx.read(NMR_file)
+    #     for i in range(4,len(dic.get('$OBSERVEDMULTIPLETSPEAKS')[0].split()),3):
+    #         j = float(dic.get('$OBSERVEDMULTIPLETSPEAKS')[0].split()[i][:-3])
+    #         if uc.
+    #             picked_peaks.append(int(np.argwhere(uc.ppm_scale()==float(j))))
+    #     for i in list(removed):
+    #         picked_peaks.append(i)
+    #     picked_peaks = sorted(picked_peaks)
 
     return total_spectral_ydata,spectral_xdata_ppm,corr_distance,uc,picked_peaks,simulated_ydata,removed
 
@@ -147,24 +161,55 @@ def initial_processing(file,datatype):
 
         total_spectral_ydata = ng.proc_base.ifft_positive(total_spectral_ydata)
 
+    elif datatype == 'mjcamp':  # by LXH 20230310 for Mnova jcamp data
+
+        dic, total_spectral_ydata = ng.jcampdx.read(file)  # read file
+
+    elif datatype == 'vfid':  # by LXH 20230223 to process agilent/varian data
+
+        dic, total_spectral_ydata = ng.varian.read(file)  # read file
+
     else:
 
         dic, total_spectral_ydata = ng.bruker.read(file)  # read file
 
         total_spectral_ydata = ng.bruker.remove_digital_filter(dic, total_spectral_ydata)  # remove the digital filter
 
-    total_spectral_ydata = ng.proc_base.zf_double(total_spectral_ydata, 2)  # zero filling once
+    if datatype != "mjcamp":  # by LXH 20230310 for Mnova jcamp
+        total_spectral_ydata = ng.proc_base.zf_double(total_spectral_ydata, 2)  # zero filling once
 
-    total_spectral_ydata = ng.proc_base.fft_positive(total_spectral_ydata)  # Fourier transform
+    if datatype == 'vfid':  # by LXH 20230223 to process agilent/varian data
 
-    real_part = ng.proc_bl.baseline_corrector(np.real(total_spectral_ydata), wd=2)
-    im_part = ng.proc_bl.baseline_corrector(np.imag(total_spectral_ydata), wd=2)
+        total_spectral_ydata = ng.proc_base.fft(total_spectral_ydata)  # Fourier transform
 
-    total_spectral_ydata = real_part + 1j *im_part
+    elif datatype != 'mjcamp':
+
+        total_spectral_ydata = ng.proc_base.fft_positive(total_spectral_ydata)  # Fourier transform
+
+    if datatype != 'mjcamp':  # by LXH 20230310 for Mnova jcamp data
+        real_part = ng.proc_bl.baseline_corrector(np.real(total_spectral_ydata), wd=2)
+        im_part = ng.proc_bl.baseline_corrector(np.imag(total_spectral_ydata), wd=2)
+
+        total_spectral_ydata = real_part + 1j *im_part
 
     if datatype == 'jcamp':
 
         udic = jcamp_guess_udic(dic, total_spectral_ydata)
+
+    elif datatype == 'mjcamp':
+
+        udic = ng.jcampdx.guess_udic(dic, total_spectral_ydata)
+
+    elif datatype == 'vfid':  # by LXH 20230223 to process agilent/varian data
+
+        udic = ng.varian.guess_udic(dic, total_spectral_ydata)
+        udic[0]['size'] = len(total_spectral_ydata)  # should be the size of final data rather than np
+        udic[0]['sw'] = float(dic['procpar']['sw']['values'][0])
+        udic[0]['complex'] = 'True'
+        udic[0]['obs'] = float(dic['procpar']['sfrq']['values'][0])
+        delta = (udic[0]['obs'] - float(dic['procpar']['sreffrq']['values'][0])) * 1e6
+        udic[0]['car'] = delta  # carrier frequency is the delta between (carrier-TMS/DSS) in Hz
+        udic[0]['label'] = dic['procpar']['tn']['values'][0]
 
     else:
 
@@ -172,10 +217,22 @@ def initial_processing(file,datatype):
 
     # total_spectral_ydata = ng.proc_autophase.autops(total_spectral_ydata, 'acme')  # automatic phase correction
 
-    uc = ng.fileiobase.uc_from_udic(udic)  # unit conversion element
-    spectral_xdata_ppm = uc.ppm_scale()  # ppmscale creation
+    if datatype == 'mjcamp':  # by LXH 20230310 for Mnova jcamp data
 
-    maximum= np.max(total_spectral_ydata)
+        fstx, lstx, isppm = ng.jcampdx._find_firstx_lastx(dic)
+
+        stp = float(dic.get("DELTAX")[0])
+
+        uc = ng.fileiobase.uc_from_freqscale(np.arange(fstx, lstx+stp, stp)+1, udic[0]['obs'], unit='hz')
+        "the last point was included by using lstx+stp"  # 20230313 by LXH
+        spectral_xdata_ppm = uc.ppm_scale()
+
+    else:  # data other than Mnova jcamp(fid,vfid,jcamp)
+
+        uc = ng.fileiobase.uc_from_udic(udic)  # unit conversion element
+        spectral_xdata_ppm = uc.ppm_scale()  # ppmscale creation
+
+    maximum = np.max(total_spectral_ydata)
 
     total_spectral_ydata = total_spectral_ydata/np.max(total_spectral_ydata)
 

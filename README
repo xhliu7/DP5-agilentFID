@@ -321,3 +321,9 @@ NMR-AI python script for plotting of raw proton/carbon NMR data processed and as
 
 StructureInput.py
 Script for cleaning structures using RDkit, generating 3d geometries and reading InChI, Smiles and SMARTS input formats
+
+"The following were added by LXH for instruction of the modifications"  2023Mar
+Added mjcamp for Mnova jcamp_dx format data and vfid for varian/agilent raw fid in PyDP4.py.
+Please use the file name of mProton.dx/mproton.dx and mCarbon.dx/mcarbon.dx for Mnova exported jcamp data.
+Please use the folder name PROTON_01 and CARBON_01 for the varian/agilent raw NMR data.
+mjcamp is currently not workable 20230404

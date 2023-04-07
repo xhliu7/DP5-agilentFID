@@ -54,8 +54,8 @@ def PlotProton(NMRData,Isomers,settings):
         
         fig1.set_size_inches(30, 17)
         
-        plt.xlim([10, 0])
-
+        # plt.xlim([10, 0])
+        plt.xlim([18, -2])  # by LXH 20230227 to cover more range(old 10,0)
         plt.xlabel("ppm")
         
         plt.plot(xdata, ydata, label='data', color='grey')

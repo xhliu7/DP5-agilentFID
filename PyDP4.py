@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # -*- coding: utf-8 -*-
 """
@@ -188,7 +188,6 @@ class Isomer:
         self.Hexp = []  # Experimental H NMR shifts
 
 def main(settings):
-
 
     print("Current working directory: " + os.getcwd())
     print("Initial input files: " + str(settings.InputFiles))
@@ -415,6 +414,34 @@ def main(settings):
             print('Equivalents: ' + str(NMRData.Equivalents))
             print('Omits: ' + str(NMRData.Omits))
 
+        elif NMRData.Type == "vfid":  # by LXH 20230224 for agilent/varian data processing
+
+            for f in settings.NMRsource:
+
+                if f.name == "PROTON_01":
+
+                    from Proton_assignment import AssignProton
+                    from Proton_plotting import PlotProton
+
+                    print('\nAssigning proton spectrum...')
+                    Isomers = AssignProton(NMRData, Isomers, settings)
+
+                    if settings.GUIRunning == False:
+                        print('\nPlotting proton spectrum...')
+                        PlotProton(NMRData, Isomers, settings)
+
+                elif f.name == "CARBON_01":
+
+                    from Carbon_assignment import AssignCarbon
+                    from Carbon_plotting import PlotCarbon
+
+                    print('\nAssigning carbon spectrum...')
+                    Isomers = AssignCarbon(NMRData, Isomers, settings)
+
+                    if settings.GUIRunning == False:
+                        print('\nPlotting carbon spectrum...')
+                        PlotCarbon(NMRData, Isomers, settings)
+
         elif NMRData.Type == "fid":
 
             for f in settings.NMRsource:
@@ -500,11 +527,11 @@ def main(settings):
             DP5data = DP5.kde_probs(Isomers, DP5data, 0.025)
             DP5data = DP5.BoltzmannWeight_DP5(Isomers, DP5data)
             DP5data = DP5.Calculate_DP5(DP5data)
-            DP5data = DP5.Rescale_DP5(DP5data, settings)
+            DP5data = DP5.Rescale_DP5(DP5data, settings)  # cause DP5 calculation problem 20230217 LXH
             DP5data = DP5.Pickle_res(DP5data, settings)
 
         else:
-
+            # DP5data = DP5.Pickle_res(DP5data, settings)  # 20230216, added by LXH for troubleshooting
             DP5data = DP5.UnPickle_res(DP5data, settings)
 
 
@@ -526,10 +553,15 @@ def main(settings):
 
             DP4data = DP4.DP4data()
             DP4data = DP4.ProcessIsomers(DP4data, Isomers)
+            # for key in dir(DP4data):  # by LXH 20230314 for mjcamp developing
+            #     if not key.startswith("__"):
+            #         print(key," = ",getattr(DP4data,key))
             DP4data = DP4.InternalScaling(DP4data)
             DP4data = DP4.CalcProbs(DP4data, settings)
             DP4data = DP4.CalcDP4(DP4data)
-
+            # for key in dir(Isomers):  # by LXH 20230314 for mjcamp developing
+            #     if not key.startswith("__"):
+            #         print(key," = ", getattr(Isomers,key))
             DP4data = DP4.MakeOutput(DP4data, Isomers, settings)
 
     else:
@@ -581,11 +613,13 @@ def NMR_files(NMR_args):
 
         for f in NMR_path.iterdir():
 
-            if f.name == "Carbon" or f.name == "carbon" or f.name == "Carbon.dx" or f.name == "carbon.dx":
+            if f.name == "Carbon" or f.name == "carbon" or f.name == "Carbon.dx" or f.name == "carbon.dx"\
+                    or f.name == "CARBON_01":  # added by LXH for agilent/varian data processing
                 NMR_Data.append(f)
                 c_switch = 1
 
-            elif f.name == "Proton" or f.name == "proton" or f.name == "Proton.dx" or f.name == "proton.dx":
+            elif f.name == "Proton" or f.name == "proton" or f.name == "Proton.dx" or f.name == "proton.dx"\
+                    or f.name == "PROTON_01":  # added by LXH for agilent/varian data processing
                 NMR_Data.append(f)
                 p_switch = 1
 
@@ -839,5 +873,10 @@ if __name__ == '__main__':
     # check if NMR data has been passed from the cwd or the full path
 
     settings.OutputFolder = Path(args.OutputFolder)
-
+    # "added by LXH on 2023/02/16 to track errors"
+    # print('========= Below is the settings for the DP4 workflow ==========')
+    # for key in dir(settings):
+    #     if not key.startswith("__"):
+    #         print("setting.", key,' = ', getattr(settings,key), " and type is: ", type(getattr(settings,key)))
+    # print('=================== End of Settings printing ===================')
     main(settings)

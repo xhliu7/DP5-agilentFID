@@ -12,6 +12,7 @@ import glob
 import os
 import subprocess
 import shutil
+import time
 
 def SetupNMRCalcs(Isomers, settings):
     jobdir = os.getcwd()
@@ -276,12 +277,16 @@ def RunCalcs(NWJobs, settings):
         quit()
 
     for f in NWJobs:
+        start = time.time()
         print(NWChemPrefix + ' ' + f + ' > ' + f[:-2] + 'nwo')
-        outp = subprocess.check_output(NWChemPrefix + ' ' + f + ' > ' + f[:-2] +
-                                       'nwo', shell=True)
+        # outp = subprocess.check_output('mpirun --hostfile /opt/hostfile -np 64 ' + NWChemPrefix + ' ' + f + ' > ' + f[:-2] +
+        #                                'nwo', shell=True)  # use 64 of 64 CPUs of the workstation, by LXH 20230215
+        outp = subprocess.check_output('mpirun -np 32 ' + NWChemPrefix + ' ' + f + ' > ' + f[:-2] +
+                                       'nwo', shell=True)  # use 32 of 64 CPUs of the workstation, by LXH 20230215
+        end = time.time()
         NCompleted += 1
         print("NWChem job " + str(NCompleted) + " of " + str(len(NWJobs)) + \
-            " completed.")
+            " completed. Time used: ~" + str(int((end-start)/60)) + " minutes.")
         if IsNWChemCompleted(f[:-3] + '.nwo'):
             Completed.append(f[:-3] + '.nwo')
             print("NWChem job " + str(NCompleted) + " of " + str(len(NWJobs)) + \

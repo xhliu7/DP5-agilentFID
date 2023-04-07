@@ -36,7 +36,7 @@ class NMRData:
     def __init__(self,settings):
 
         self.cwd = Path(os.getcwd())
-        self.InputPath = settings.NMRsource  # Initial structure input file
+        self.InputPath = settings.NMRsource  # Initial structure input file, NOT, NMR data LXH 20220224
         self.Type = 'desc'          # desc or fid, depending on whether the description or raw data used
         self.Atoms = []             # Element labels
         self.Cshifts = []           # Experimental C NMR shifts
@@ -66,15 +66,29 @@ class NMRData:
 
                     if p.is_dir():
 
-                        self.Type = 'fid'
+                        if not list(p.glob('procpar')):  # 20230223 by LXH to recognize varian/agilent data
 
-                        if p.parts[-1] == "Proton" or p.parts[-1] == "proton":
+                            self.Type = 'fid'  # 20230223 by LXH, "fid" is bruker fid
 
-                            self.ProcessProton(settings,ind1)
+                            if p.parts[-1] == "Proton" or p.parts[-1] == "proton":
 
-                        elif p.parts[-1] == "Carbon" or p.parts[-1] == "carbon":
+                                self.ProcessProton(settings,ind1)
 
-                            self.ProcessCarbon(settings,ind1)
+                            elif p.parts[-1] == "Carbon" or p.parts[-1] == "carbon":
+
+                                self.ProcessCarbon(settings,ind1)
+
+                        else:
+
+                            self.Type = 'vfid'  # 20230223 by LXH, "vfid" agilent/varian fid
+
+                            if p.parts[-1] == "PROTON_01":  # 20230223 by LXH, PROTON_01 is collected by automation
+
+                                self.ProcessProton(settings,ind1)
+
+                            elif p.parts[-1] == "CARBON_01":
+
+                                self.ProcessCarbon(settings,ind1)
 
                     elif p.parts[-1] == "Proton.dx" or p.parts[-1] == "proton.dx":
 
@@ -82,11 +96,24 @@ class NMRData:
 
                         self.ProcessProton(settings,ind1)
 
+                    elif p.parts[-1] == "mProton.dx" or p.parts[-1] == "mproton.dx":
+                        "added by LXH 20230310 for processing Mnova exported jcamp data"
+                        self.Type = 'mjcamp'
+
+                        self.ProcessProton(settings, ind1)
+
                     elif p.parts[-1] == "Carbon.dx" or p.parts[-1] == "carbon.dx":
 
                         self.Type = 'jcamp'
 
                         self.ProcessCarbon(settings,ind1)
+
+                    elif p.parts[-1] == "mCarbon.dx" or p.parts[-1] == "mcarbon.dx":
+                        "added by LXH on 20230310 to process Mnova jcamp data"
+                        self.Type = 'mjcamp'
+
+                        self.ProcessCarbon(settings,ind1)
+
                     else:
 
                         self.Type = 'desc'
@@ -548,9 +575,9 @@ def PairwiseAssignment(Isomers,NMRData):
 
         sortedCCalc = sorted(iso.Cshifts, reverse=True)
 
-        sortedClabels =[  '' for i in iso.Clabels]
+        sortedClabels =[  '' for i in iso.Clabels]  # hollow list of strings LXH 20230315
 
-        for ind_1 ,  shift in enumerate(iso.Cshifts):
+        for ind_1 ,  shift in enumerate(iso.Cshifts):  # sort Clabels according to sortedCcalcs
 
             ind_2 = sortedCCalc.index(shift)
 
@@ -561,7 +588,7 @@ def PairwiseAssignment(Isomers,NMRData):
 
         sortedHlabels = ['' for i in iso.Hlabels]
 
-        for ind_1, shift in enumerate(iso.Hshifts):
+        for ind_1, shift in enumerate(iso.Hshifts):  # sort Hlabels according to sortedHcalcs
 
             ind_2 = sortedHCalc.index(shift)
 
@@ -569,13 +596,13 @@ def PairwiseAssignment(Isomers,NMRData):
 
 
         sortedCExp = sorted(NMRData.Cshifts, reverse=True)
-        sortedHExp = sorted(NMRData.Hshifts, reverse=True)
+        sortedHExp = sorted(NMRData.Hshifts, reverse=True)  # sorted experimental H shifts, LXH 20230315
 
         assignedCExp = [''] * len(sortedCCalc)
         assignedHExp = [''] * len(sortedHCalc)
 
         tempCCalcs = list(iso.Cshifts)
-        tempHCalcs = list(iso.Hshifts)
+        tempHCalcs = list(iso.Hshifts)  # list of Calculated H shifts, comment by LXH 20230315
 
         # do the assignment in order of chemical shift starting with the largest
 
@@ -605,10 +632,12 @@ def PairwiseAssignment(Isomers,NMRData):
             if label not in NMRData.Omits:
 
                 ind = tempHCalcs.index(shift)
-
+                # print('exp_ind, assgignedHExp[ind], sortedHExp[exp_ind]',exp_ind,assignedHExp[ind],sortedHExp[exp_ind])
                 assignedHExp[ind] = sortedHExp[exp_ind]
 
-                tempHCalcs[ind] = ''
+                tempHCalcs[ind] = ''  # comment by LXH 20230316, cleaning the calculated shifts with assigning
+
+                exp_ind += 1  # added by LXH 20230315, original code missed this line
 
         # update isomers class
 

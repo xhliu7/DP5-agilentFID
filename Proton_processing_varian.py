@@ -23,7 +23,7 @@ def process_proton(NMR_file, settings, datatype):
 
     total_spectral_ydata, spectral_xdata_ppm, corr_distance, uc, noise_std, peak_regions = spectral_processing(NMR_file,
                                                                                                                datatype)
-    # print(NMR_file,datatype)  # by LXH 20230207: correct value returned datatype: fid, NMR_file: path to nmrfile
+
     gradient_peaks, gradient_regions, gradient_groups, std = gradient_peak_picking(total_spectral_ydata, corr_distance,
                                                                                    uc, noise_std, peak_regions)
 
@@ -146,7 +146,7 @@ def guess_udic(dic, data):
 
 
 def spectral_processing(file, datatype):
-    print('Processing Proton Spectrum of nmr dataType: ' + datatype)  # by LXH 20230227
+    print('Processing Proton Spectrum')
 
     if datatype == 'jcamp':
 
@@ -156,27 +156,15 @@ def spectral_processing(file, datatype):
 
         total_spectral_ydata = ng.proc_base.ifft_positive(total_spectral_ydata)
 
-    elif datatype == 'mjcamp':  # added by LXH 20230310 to process Mnova jcamp data
-
-        dic, total_spectral_ydata = ng.jcampdx.read(file)
-
-    elif datatype == 'vfid':  # by LXH 20230223 to process agilent/varian data
-
-        dic, total_spectral_ydata = ng.varian.read(file)  # read file
-
-        total_spectral_ydata = ng.proc_base.zf_double(total_spectral_ydata, 4)
-
-        total_spectral_ydata = ng.proc_base.fft(total_spectral_ydata)   # agilent/varian fft
-
-    else:  # bruker processing
+    else:
 
         dic, total_spectral_ydata = ng.bruker.read(file)  # read file
 
         total_spectral_ydata = ng.bruker.remove_digital_filter(dic, total_spectral_ydata)  # remove the digital filter
 
-        total_spectral_ydata = ng.proc_base.zf_double(total_spectral_ydata, 4)
+    total_spectral_ydata = ng.proc_base.zf_double(total_spectral_ydata, 4)
 
-        total_spectral_ydata = ng.proc_base.fft_positive(total_spectral_ydata)  # Fourier transform
+    total_spectral_ydata = ng.proc_base.fft_positive(total_spectral_ydata)  # Fourier transform
 
     corr_distance = estimate_autocorrelation(total_spectral_ydata)
 
@@ -190,12 +178,9 @@ def spectral_processing(file, datatype):
 
         udic = guess_udic(dic, total_spectral_ydata)
 
-    elif datatype == 'mjcamp':  # LXH 20230310, udic for mjcamp seems useless
+    else:
 
-        udic = ng.jcampdx.guess_udic(dic, total_spectral_ydata)
-
-    elif datatype == 'vfid':  # by LXH 20230223 to process agilent/varian data
-
+        # udic = ng.bruker.guess_udic(dic, total_spectral_ydata)  # sorting units
         udic = ng.varian.guess_udic(dic, total_spectral_ydata)
         udic[0]['size'] = len(total_spectral_ydata)  # should be the size of final data rather than np
         udic[0]['sw'] = float(dic['procpar']['sw']['values'][0])
@@ -205,47 +190,18 @@ def spectral_processing(file, datatype):
         udic[0]['car'] = delta  # carrier frequency is the delta between (carrier-TMS/DSS) in Hz
         udic[0]['label'] = dic['procpar']['tn']['values'][0]
 
-    else:
-        udic = ng.bruker.guess_udic(dic, total_spectral_ydata)  # sorting units
+    uc = ng.fileiobase.uc_from_udic(udic)  # unit conversion element
 
-    if datatype == 'mjcamp':  # by LXH 20230310 for Mnova jcamp data
-
-        fstx, lstx, isppm = ng.jcampdx._find_firstx_lastx(dic)
-
-        stp = float(dic.get("DELTAX")[0])
-
-        uc = ng.fileiobase.uc_from_freqscale(np.arange(fstx, lstx+stp, stp), udic[0]['obs'], unit='hz')
-        "the last point was included by using lstx+stp"  # 20230313 by LXH
-        spectral_xdata_ppm = uc.ppm_scale()
-
-    else:  # other dataType than Mnova jcamp
-
-        uc = ng.fileiobase.uc_from_udic(udic)  # unit conversion element
-
-        spectral_xdata_ppm = uc.ppm_scale()  # ppmscale creation
-
-
+    spectral_xdata_ppm = uc.ppm_scale()  # ppmscale creation
 
     # baseline and phasing
 
-    if datatype == 'vfid':   # by LXH 20230223 to process agilent/varian data
-        'get better proton spectrum but bad auto_assign quality'
-        # p0 = float(dic['procpar']['rp']['values'][0])
-        # p1 = float(dic['procpar']['lp']['values'][0])
-        # tydata = ng.proc_autophase.ps(total_spectral_ydata, p0=p0, p1=p1, inv=True)
-        # tydata = ng.proc_base.di(tydata)
-        'get acceptable proton spectrum and better auto_assign'
-        tydata = ACMEWLRhybrid(total_spectral_ydata, corr_distance)
+    # tydata = ACMEWLRhybrid(total_spectral_ydata, corr_distance)
+    p0 = float(dic['procpar']['rp']['values'][0])
+    p1 = float(dic['procpar']['lp']['values'][0])
+    tydata = ng.proc_autophase.ps(total_spectral_ydata, p0=p0, p1=p1, inv=True)
+    tydata = ng.proc_base.di(tydata)
 
-    elif datatype != 'mjcamp':  # Mnova jcamp don't need phasing and baseline correction, by LXH 20230310
-        tydata = ng.proc_autophase.autops(total_spectral_ydata,'acme')  # 2023/03/08 by LXH
-        tydata = ng.proc_base.di(tydata)  # 2023/03/08 by LXH
-        # tydata = ACMEWLRhybrid(total_spectral_ydata, corr_distance)  # 2023/03/08 by LXH, get very bad Proton spectrum
-
-    else:  # Mnova jcamp data, LXH 20230310
-        tydata = total_spectral_ydata
-
-    print(corr_distance)  # by LXH for tracing error code
     # find final noise distribution
     classification, sigma = baseline_find_signal(tydata, corr_distance, True, 1)
 
@@ -1621,11 +1577,11 @@ def remove_impurities(integrals, peak_regions, grouped_peaks, picked_peaks, sim_
     picked_peaks = np.delete(picked_peaks, whdel)
 
     integrals = np.delete(integrals, to_remove)
-    peak_regions = np.array(peak_regions, dtype=object)  # by LXH 20230209, to solved the numpy version problem. Depreciation of creating array from "ragged" sequences after ver1.19.0.
+
     peak_regions = np.delete(peak_regions, to_remove)
-    grouped_peaks = np.array(grouped_peaks, dtype=object)  # by LXH 20230209
+
     grouped_peaks = np.delete(grouped_peaks, to_remove)
-    sim_regions = np.array(sim_regions, dtype=object)  # by LXH 20230209
+
     sim_regions = np.delete(sim_regions, to_remove)
 
     rounded_integrals = r[r > 0.5]
@@ -1686,7 +1642,7 @@ def labile_protons(file):
     obconversion.ReadFile(obmol, file)
 
     count = 0
-    # print(file)  # by LXH 20230208, readfile error corrected by change line 1659
+
     for atom in OBMolAtomIter(obmol):
         for NbrAtom in OBAtomAtomIter(atom):
             if (atom.GetAtomicNum() == 8) & (NbrAtom.GetAtomicNum() == 1):
@@ -1711,8 +1667,8 @@ def find_integrals(file, peak_regions, grouped_peaks, sim_regions,
 
     # count the number of labile protons in the structure
 
-    # l_protons = labile_protons(file)
-    l_protons = labile_protons(str(file).split('.sdf')[0] + ".sdf")  # by LXH 20230208
+    l_protons = labile_protons(file)
+
     print('     number of labile protons = ' + str(l_protons))
 
     count = 0
@@ -1784,7 +1740,7 @@ def find_integrals(file, peak_regions, grouped_peaks, sim_regions,
 
 def sum_round(a):
     rounded = [round(i, 0) for i in a]
-    # print(a)  # by LXH 20230207
+
     error = sum(a) - sum(rounded)
 
     n = int(round(error / 1))

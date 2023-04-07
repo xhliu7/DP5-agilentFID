@@ -367,9 +367,9 @@ def Calculate_DP5(dp5Data):
 def Rescale_DP5(dp5Data,Settings):
 
     incorrect_kde = pickle.load(open(Path(Settings.ScriptDir) / "i_w_kde_mean_s_0.025.p" ,"rb"))
-
+    incorrect_kde._compute_covariance()  # by LXH 20230220 for no 'cho_cov' err
     correct_kde = pickle.load(open(Path(Settings.ScriptDir) / "c_w_kde_mean_s_0.025.p" ,"rb"))
-
+    correct_kde._compute_covariance()  # by LXH 20230220 for no 'cho_cov' err
     i = 0
 
     for scaled in dp5Data.BScaledAtomProbs:

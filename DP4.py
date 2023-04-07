@@ -349,11 +349,11 @@ def MakeOutput(DP4Data, Isomers, Settings):
     for i, p in enumerate(DP4Data.DP4probs):
         DP4Data.output += ("\nIsomer " + str(i + 1) + ": " + format(p * 100, "4.1f") + "%")
 
-    print("number of c protons = " + str(len(Isomers[0].Hlabels)))
-    print("number of c carbons = " + str(len(Isomers[0].Clabels)))
+    print("number of calculated protons = " + str(len(Isomers[0].Hlabels)))
+    print("number of calculated carbons = " + str(len(Isomers[0].Clabels)))
 
-    print("number of e protons = " + str(len(DP4Data.Hexp[0])))
-    print("number of e carbons = " + str(len(DP4Data.Cexp[0])))
+    print("number of experimental protons = " + str(len(DP4Data.Hexp[0])))
+    print("number of experimental carbons = " + str(len(DP4Data.Cexp[0])))
 
     print(DP4Data.output)
 

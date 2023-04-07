@@ -55,8 +55,8 @@ def PlotCarbon(NMRData,Isomers,settings):
     
         totallist = exppeaks_ppm + shiftlist
     
-        plt.xlim([max(totallist) + 10, min(totallist) - 10])
-    
+        # plt.xlim([max(totallist) + 10, min(totallist) - 10])
+        plt.xlim([240,-10])  # by LXH to cover all C13 range
         plt.plot(xdata, ydata, color='grey', linewidth=0.75, label='experimental spectrum')
         plt.plot(xdata, simulated_ydata, label='simulated spectrum')
     

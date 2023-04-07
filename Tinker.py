@@ -123,8 +123,8 @@ def ReadConformers(TinkerOutputs, Isomers, settings):
                 iso.Conformers = conformers
                 iso.MMCharge = charge
                 iso.MMEnergies = AbsEs
-            else:
-                print(outp + ' ' + iso.BaseName + ' Nope')
+            # else:
+                # print(outp + ' ' + iso.BaseName + ' Nope')  # by LXH 20230301,stop outputting
     return Isomers
 
 
@@ -276,7 +276,7 @@ def GetInchiCharge(inchifile):
 
 
 def GetSDFCharge(sdf):
-    import openbabel
+    from openbabel import openbabel
 
     obconversion = openbabel.OBConversion()
     obconversion.SetInFormat("sdf")
