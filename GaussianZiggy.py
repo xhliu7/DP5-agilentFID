@@ -141,7 +141,7 @@ def RunBatchOnZiggy(findex, queue, GausFiles, settings):
     # Run Gaussian jobs on Ziggy cluster in folder named after date and time
     # Split in batches, if needed
 
-    if findex == 0:
+    if findex == 0:  # findex是什么？20240903
         folder = settings.StartTime + settings.Title
     else:
         folder = settings.StartTime + findex + settings.Title
@@ -149,12 +149,12 @@ def RunBatchOnZiggy(findex, queue, GausFiles, settings):
     print("Setting up jobs for running on ziggy...\n")
 
     #Check that folder does not exist, create job folder on ziggy
-    outp = subprocess.check_output('ssh ziggy ls', shell=True)
+    outp = subprocess.check_output('ssh -p 553 xhliu73@ziggy ls', shell=True)  #LXH 20240904 to use cluster
     if folder in outp.decode():
         print("Folder exists on ziggy, choose another folder name.")
         return
 
-    outp = subprocess.check_output('ssh ziggy mkdir ' + folder, shell=True)
+    outp = subprocess.check_output('ssh -p 553 xhliu73@ziggy mkdir ' + folder, shell=True) #LXH 20240904 to use cluster
 
     print("Results folder: " + folder)
 
@@ -166,29 +166,29 @@ def RunBatchOnZiggy(findex, queue, GausFiles, settings):
     #Upload .com files and .qsub files to directory
     print("Uploading files to ziggy...")
     for f in GausFiles:
-        outp = subprocess.check_output('scp ' + f +' ziggy:~/' + folder,
-                                           shell=True)
-        outp = subprocess.check_output('scp ' + f[:-4] +'slurm ziggy:~/' +
-                                       folder, shell=True)
+        outp = subprocess.check_output('scp -P 553 ' + f +' xhliu73@ziggy:~/' + folder,
+                                           shell=True)  # LXH 20240904
+        outp = subprocess.check_output('scp -P 553 ' + f[:-4] +'slurm xhliu73@ziggy:~/' +
+                                       folder, shell=True)  # LXH 20240904
 
     print(str(len(GausFiles)) + ' .com and slurm files uploaded to ziggy')
 
     JobIDs = []
     #Launch the calculations
     for f in GausFiles:
-        job = '~/' + folder + '/' + f[:-4]
-        outp = subprocess.check_output('ssh ziggy sbatch ' + job + 'slurm', shell=True)
+        job = '/home/' + settings.user + "/" + folder + '/' + f[:-4]
+        outp = subprocess.check_output('ssh -p 553 xhliu73@ziggy sbatch ' + job + 'slurm', shell=True)  # LXH 20240904
         status = outp.decode()[:-1]
         print(status)
         JobIDs.append(status.split('job ')[1])
 
     print(str(len(GausFiles)) + ' jobs submitted to the queue on ziggy')
 
-    outp = subprocess.check_output('ssh ziggy qstat', shell=True)
+    outp = subprocess.check_output('ssh -p 553 xhliu73@ziggy qstat', shell=True)  # LXH 20240904
     if settings.user in outp.decode():
         print("Jobs are running on ziggy")
 
-    time.sleep(60)
+    time.sleep(5)
     OldQRes = CheckZiggyQueue(JobIDs, settings)
     print('Pending: ' + str(OldQRes[0]) + ', Running: ' + str(OldQRes[1]) + ', Not in queue: ' + str(OldQRes[2]))
 
@@ -215,15 +215,14 @@ def RunBatchOnZiggy(findex, queue, GausFiles, settings):
             print('No jobs left in Ziggy queue')
             break
 
-        time.sleep(120)
+        time.sleep(10)
 
     #When done, copy the results back
     print("\nCopying the output files back to localhost...")
-    print('ssh ziggy scp /home/' + settings.user + '/' + folder + '/*.out ' +\
+    print('ssh -p 553 xhliu73@ziggy scp /home/' + settings.user + '/' + folder + '/*.out ' +\
         socket.getfqdn() + ':' + os.getcwd())
-    outp = subprocess.check_output('ssh ziggy scp /home/' + settings.user +
-                                   '/' + folder + '/*.out ' + socket.getfqdn()
-                                   + ':' + os.getcwd(), shell=True)
+    outp = subprocess.check_output('scp -P 553 xhliu73@ziggy:/home/' + settings.user +
+                                   '/' + folder + '/*.out ' + os.getcwd(), shell=True)  # LXH 20240904
 
 
 def WriteSubScript(GausJob, queue, ZiggyJobFolder, settings):
@@ -251,18 +250,18 @@ def WriteSubScript(GausJob, queue, ZiggyJobFolder, settings):
     #define cwd and scratch folder and ask the machine
     #to make it before running the job
     QSub.write('HERE=/home/' + settings.user +'/' + ZiggyJobFolder + '\n')
-    QSub.write('SCRATCH=/scratch/' + settings.user + '/' +
-               GausJob[:-4] + '\n')
+    QSub.write('SCRATCH=/data1/liuxuehui/scratch/' + settings.user + '/' +
+               GausJob[:-4] + '\n')  # LXH 20240904
     QSub.write('mkdir ${SCRATCH}\n')
 
     #Setup GAUSSIAN environment variables
-    QSub.write('set OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK\n')
+    QSub.write('set OMP_NUM_THREADS=32\n')  # LXH 20240904
     
-    QSub.write('export GAUSS_EXEDIR=/usr/local/shared/gaussian/em64t/09-D01/g09\n')
-    QSub.write('export g09root=/usr/local/shared/gaussian/em64t/09-D01\n')
-    QSub.write('export PATH=/usr/local/shared/gaussian/em64t/09-D01/g09:$PATH\n')
+    QSub.write('export GAUSS_EXEDIR=/data1/liuxuehui/apps/g16\n')  # LXH 20240904
+    QSub.write('export g09root=/data1/liuxuehui/apps/g16\n')  # LXH 20240904
+    QSub.write('export PATH=/data1/liuxuehui/apps/g16:$PATH\n')  # LXH 20240904
     QSub.write('export GAUSS_SCRDIR=$SCRATCH\n')
-    QSub.write('exe=$GAUSS_EXEDIR/g09\n')
+    QSub.write('exe=$GAUSS_EXEDIR/g16\n')  # LXH 20240904
     #copy the input file to scratch
     QSub.write('cp ${HERE}/${inpfile}  $SCRATCH\ncd $SCRATCH\n')
 
@@ -271,7 +270,7 @@ def WriteSubScript(GausJob, queue, ZiggyJobFolder, settings):
     QSub.write('echo "SLURM assigned me this node:"\nsrun hostname\necho\n')
 
     QSub.write('ln -s $HERE/$outfile $SCRATCH/$outfile\n')
-    QSub.write('srun $exe > $outfile < $inpfile\n')
+    QSub.write('srun $exe < $inpfile > $outfile\n')  # LXH 20240904
 
     #Cleanup
     QSub.write('rm -rf ${SCRATCH}/\n')
@@ -283,16 +282,16 @@ def IsZiggyGComplete(f, folder, settings):
 
     path = '/home/' + settings.user + '/' + folder + '/'
     try:
-        outp1 = subprocess.check_output('ssh ziggy ls ' + path, shell=True)
+        outp1 = subprocess.check_output('ssh -p 553 xhliu73@ziggy ls ' + path, shell=True)  # LXH 20240904
     except subprocess.CalledProcessError as e:
-        print("ssh ziggy ls failed: " + str(e.output))
+        print("ssh -p 553 xhliu73@ziggy ls failed: " + str(e.output))  # LXH 20240904
         return False
     if f in outp1.decode():
         try:
-            outp2 = subprocess.check_output('ssh ziggy cat ' + path + f,
-                                            shell=True)
+            outp2 = subprocess.check_output('ssh -p 553 xhliu73@ziggy cat ' + path + f,
+                                            shell=True)  # LXH 20240904
         except subprocess.CalledProcessError as e:
-            print("ssh ziggy cat failed: " + str(e.output).decode())
+            print("ssh -p 553 xhliu73@ziggy cat failed: " + str(e.output).decode())  # LXH 20240904
             return False
         if ("Normal termination" in outp2[-90:].decode()) or \
                 (('termination' in outp2[-270:].decode()) and ('l9999.exe' in outp2[-270:].decode())):
@@ -302,8 +301,8 @@ def IsZiggyGComplete(f, folder, settings):
 
 def CheckZiggyQueue(JobIDs, settings):
 
-    outp = subprocess.Popen(['ssh', 'ziggy', 'qstat', '-u ' + settings.user], \
-                            stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]
+    outp = subprocess.Popen(['ssh','-p 553', 'xhliu73@ziggy', 'qstat', '-u ' + settings.user], \
+                            stderr=subprocess.STDOUT, stdout=subprocess.PIPE).communicate()[0]  # LXH 20240904
     outp = outp.decode().split('\n')
 
     QStart = 0

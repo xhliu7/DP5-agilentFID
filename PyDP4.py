@@ -126,9 +126,9 @@ class Settings:
 
     # --- Computational clusters ---
     """ These should probably be moved to relevant *.py files as Cambridge specific """
-    user = ''  # Linux user on computational clusters, not used for local calcs
+    user = 'xhliu73'  # Linux user on computational clusters, not used for local calcs, #LXH 20240904
     TimeLimit = 24  # Queue time limit on comp clusters
-    queue = 'SWAN'  # Which queue to use on Ziggy
+    queue = 'CPU1'  # Which queue to use on Ziggy  #LXH 20240904, available queue CPU1(36nodes), CPU2(56nodes), CPU3(28nodes)
     project = 'GOODMAN-SL3-CPU'  # Which project to use on Darwin
     DarwinScrDir = '/home/u/rds/hpc-work/'  # Which scratch directory to use on Darwin
     StartTime = ''  # Automatically set on launch, used for folder names
@@ -784,7 +784,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     print(args.StructureFiles)
-    print(args.ExpNMR)
 
     settings.Title = args.ExpNMR
     settings.NMRsource = args.ExpNMR
@@ -854,11 +853,11 @@ if __name__ == '__main__':
     now = datetime.datetime.now()
     settings.StartTime = now.strftime('%d%b%H%M')
 
-    settings.user = getpass.getuser()
+    # settings.user = getpass.getuser()  #LXH 20240904
     settings.DarwinScrDir.replace('/u/', settings.user)
 
     with open('cmd.log', 'a') as f:
-        f.write(' '.join(sys.argv) + '\n')
+        f.write(settings.StartTime + ': ' + ' '.join(sys.argv) + '\n')
 
     settings.InputFiles = args.StructureFiles
 

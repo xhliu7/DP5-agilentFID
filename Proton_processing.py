@@ -238,14 +238,14 @@ def spectral_processing(file, datatype):
         tydata = ACMEWLRhybrid(total_spectral_ydata, corr_distance)
 
     elif datatype != 'mjcamp':  # Mnova jcamp don't need phasing and baseline correction, by LXH 20230310
-        tydata = ng.proc_autophase.autops(total_spectral_ydata,'acme')  # 2023/03/08 by LXH
-        tydata = ng.proc_base.di(tydata)  # 2023/03/08 by LXH
-        # tydata = ACMEWLRhybrid(total_spectral_ydata, corr_distance)  # 2023/03/08 by LXH, get very bad Proton spectrum
+        # tydata = ng.proc_autophase.autops(total_spectral_ydata,'acme')  # 2023/03/08 by LXH
+        # tydata = ng.proc_base.di(tydata)  # 2023/03/08 by LXH
+        tydata = ACMEWLRhybrid(total_spectral_ydata, corr_distance)  # 2023/03/08 by LXH, get very bad Proton spectrum
 
     else:  # Mnova jcamp data, LXH 20230310
         tydata = total_spectral_ydata
 
-    print(corr_distance)  # by LXH for tracing error code
+    # print(corr_distance)  # by LXH for tracing error code
     # find final noise distribution
     classification, sigma = baseline_find_signal(tydata, corr_distance, True, 1)
 

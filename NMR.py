@@ -182,7 +182,7 @@ class NMRData:
 
         return expLabels, expShifts
 
-    def ProcessProton(self, settings,ind):
+    def ProcessProton(self, settings, ind):
 
         if settings.OutputFolder == '':
 
@@ -191,7 +191,8 @@ class NMRData:
             gdir = self.cwd /  "Graphs"
 
         else:
-
+            if not Path(settings.OutputFolder).exists():
+                os.mkdir(settings.OutputFolder)
             pdir =  settings.OutputFolder  / "Pickles"
 
             gdir = settings.OutputFolder /  "Graphs"
@@ -254,6 +255,8 @@ class NMRData:
             gdir = self.cwd / "Graphs"
 
         else:
+            if not Path(settings.OutputFolder).exists():
+                os.mkdir(settings.OutputFolder)
             pdir =  settings.OutputFolder /  "Pickles"
 
             gdir = settings.OutputFolder /  "Graphs"
