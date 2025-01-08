@@ -268,7 +268,7 @@ def WriteSubScript(GausJob, queue, ZiggyJobFolder, settings):
     #write useful info to the job output file (not the gaussian)
     QSub.write('echo "Starting job $SLURM_JOBID"\necho\n')
     QSub.write('echo "SLURM assigned me this node:"\nsrun hostname\necho\n')
-
+    QSub.write('date') # LXH 20240904
     QSub.write('ln -s $HERE/$outfile $SCRATCH/$outfile\n')
     QSub.write('srun $exe < $inpfile > $outfile\n')  # LXH 20240904
 
